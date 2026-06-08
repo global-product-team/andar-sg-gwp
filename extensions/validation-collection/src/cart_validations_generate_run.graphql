@@ -1,0 +1,50 @@
+query CartValidationsGenerateRunInput {
+  buyerJourney {
+    step
+  }
+  shop {
+    metaobject(handle: { type: "gwp", handle: "sg-gwp" }) {
+      condition_type: field(key: "condition_type") { value }
+    }
+  }
+  cart {
+    buyerIdentity {
+      customer {
+        hasTags(tags: ["gwp-test"]) {
+          hasTag
+          tag
+        }
+      }
+    }
+    cost {
+      totalAmount {
+        amount
+        currencyCode
+      }
+    }
+    lines {
+      quantity
+      merchandise {
+        __typename
+        ... on CustomProduct {
+          isGiftCard
+          title
+        }
+        ... on ProductVariant {
+          product {
+            id
+            inCollections(ids: [
+              "gid://shopify/Collection/499615138106",
+              "gid://shopify/Collection/447626903866"
+            ]) {
+              collectionId
+              isMember
+            }
+            isGiftCard
+            
+          }
+        }
+      }
+    }
+  }
+}

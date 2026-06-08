@@ -1,0 +1,33 @@
+query CartValidationsGenerateRunInput {
+  buyerJourney {
+    step
+  }
+  cart {
+    buyerIdentity {
+      customer {
+        hasTags(tags: ["gwp-test"]) {
+          hasTag
+          tag
+        }
+      }
+    }
+
+    cost {
+      totalAmount {
+        amount
+        currencyCode
+      }
+    }
+
+    lines {
+      merchandise {
+        __typename
+        ... on ProductVariant {
+          product {
+            id
+          }
+        }
+      }
+    }
+  }
+}
