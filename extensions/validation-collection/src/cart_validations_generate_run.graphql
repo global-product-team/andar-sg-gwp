@@ -3,8 +3,16 @@ query CartValidationsGenerateRunInput {
     step
   }
   shop {
-    metaobject(handle: { type: "gwp", handle: "sg-gwp" }) {
+    localTime {
+      isCampaignPeriod: dateTimeBetween(
+        startDateTime: "2026-06-08T16:20:00"
+        endDateTime: "2026-06-12T07:00:00"
+      )
+    }
+    metaobject(handle: { type: "app--368442998785--gwp", handle: "app--368442998785--gwp-zzn4bdst" }) {
       condition_type: field(key: "condition_type") { value }
+      start_datetime: field(key: "start_datetime") { value }
+      end_datetime: field(key: "end_datetime") { value }
     }
   }
   cart {
@@ -26,22 +34,13 @@ query CartValidationsGenerateRunInput {
       quantity
       merchandise {
         __typename
-        ... on CustomProduct {
-          isGiftCard
-          title
-        }
         ... on ProductVariant {
           product {
             id
-            inCollections(ids: [
-              "gid://shopify/Collection/499615138106",
-              "gid://shopify/Collection/447626903866"
-            ]) {
+            inCollections(ids: [ "gid://shopify/Collection/499615138106", "gid://shopify/Collection/447626903866"]) {
               collectionId
               isMember
             }
-            isGiftCard
-            
           }
         }
       }
