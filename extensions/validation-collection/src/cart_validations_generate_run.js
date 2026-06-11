@@ -2,49 +2,30 @@
 
 /**
  * 조건 설정값
- *
- * conditionTypes: ["collection"] | ["amount", "collection"]
- *
- * conditions 배열 — 순서 무관 (thresholdAmount → collectionQuantity 내림차순 자동 정렬)
- *
- * ex1) amount + collection
- * {
- *   currencyCode: "SGD",
- *   thresholdAmount: 100,
- *   collectionId: "gid://shopify/Collection/xxx",
- *   collectionQuantity: 1,
- *   giftProductId: "gid://shopify/Product/xxx",
- * }
- *
- * ex2) collection만
- * {
- *   collectionId: "gid://shopify/Collection/xxx",
- *   collectionQuantity: 2,
- *   giftProductId: "gid://shopify/Product/xxx",
- * }
+ * conditionTypes는 메타오브젝트에서 읽어옴
+ * collectionId, giftProductId는 하드코딩 유지
+ * inCollections ids도 run.graphql에 동일하게 유지
  */
-const GWP_CONFIG = {
-  conditionTypes: ["amount", "collection"],
-  conditions: [
-    {
-      currencyCode: "SGD",
-      thresholdAmount: 30,
-      collectionId: "gid://shopify/Collection/499615138106",
-      collectionQuantity: 1,
-      giftProductId: "gid://shopify/Product/10143139397946",
-    },    
-    {
-      currencyCode: "MYR",
-      thresholdAmount: 400,
-      collectionId: "gid://shopify/Collection/447626903866",
-      collectionQuantity: 1,
-      giftProductId: "gid://shopify/Product/10143139397946",
-    },
-  ],
-};
+const GWP_CONDITIONS = [
+  { //men
+    currencyCode: "SGD",
+    thresholdAmount: 80,
+    collectionId: "gid://shopify/Collection/499615138106",
+    collectionQuantity: 1,
+    giftProductId: "gid://shopify/Product/10143139397946",
+  },    
+  {//women bottom
+    currencyCode: "MYR",
+    thresholdAmount: 400,
+    collectionId: "gid://shopify/Collection/447626903866",
+    collectionQuantity: 2,
+    giftProductId: "gid://shopify/Product/10143139397946",
+  },
+];
 
 const ERROR_MESSAGE =
-  "error message";
+  "error message.";
+  
 
 export function cartValidationsGenerateRun(input) {
   const step = input.buyerJourney?.step;
@@ -64,13 +45,35 @@ export function cartValidationsGenerateRun(input) {
     return { operations: [{ validationAdd: { errors: [] } }] };
   }
 
+  // ── 메타오브젝트에서 conditionTypes, 캠페인 기간 읽기 ────────
+
+  const metaobject = input?.shop?.metaobject;
+
+  if (!metaobject) {
+    return { operations: [{ validationAdd: { errors: [] } }] };
+  }
+
+  const conditionTypes = parseConditionTypes(metaobject?.condition_type?.value);
+
+  if (!conditionTypes.length) {
+    return { operations: [{ validationAdd: { errors: [] } }] };
+  }
+
+  const isCampaignPeriod = input?.shop?.localTime?.isCampaignPeriod;
+
+  if (!isCampaignPeriod) {
+    return { operations: [{ validationAdd: { errors: [] } }] };
+  }
+
+  // ── 카트 데이터 ──────────────────────────────────────────
+
   const totalAmount = Number(input?.cart?.cost?.totalAmount?.amount ?? 0);
   const currencyCode = input?.cart?.cost?.totalAmount?.currencyCode;
   const cartLines = input?.cart?.lines ?? [];
-  const conditionTypes = GWP_CONFIG.conditionTypes;
 
-  // 통화 필터링 후 높은 티어부터 자동 정렬
-  const sortedConditions = [...GWP_CONFIG.conditions]
+  // ── eligible condition 찾기 ──────────────────────────────
+
+  const sortedConditions = [...GWP_CONDITIONS]
     .filter((c) => {
       if (conditionTypes.includes("amount")) {
         return c.currencyCode === currencyCode;
@@ -83,14 +86,11 @@ export function cartValidationsGenerateRun(input) {
       return (b.collectionQuantity || 0) - (a.collectionQuantity || 0);
     });
 
-  // eligible condition 찾기
   const eligibleCondition = sortedConditions.find((condition) => {
-    // amount 조건 체크
     const amountOk =
       !conditionTypes.includes("amount") ||
       totalAmount >= (condition.thresholdAmount || 0);
 
-    // collection 조건 체크
     const collectionOk = !conditionTypes.includes("collection") || (() => {
       if (!condition.collectionId) return false;
 
@@ -111,12 +111,12 @@ export function cartValidationsGenerateRun(input) {
     return amountOk && collectionOk;
   });
 
-  // eligible condition 없으면 통과
   if (!eligibleCondition) {
     return { operations: [{ validationAdd: { errors: [] } }] };
   }
 
-  // gift product가 카트에 있는지 확인
+  // ── gift product 카트 여부 확인 ───────────────────────────
+
   const cartProductIds = cartLines
     .map((line) => {
       if (line?.merchandise?.__typename !== "ProductVariant") return null;
@@ -132,3 +132,16 @@ export function cartValidationsGenerateRun(input) {
 
   return { operations: [{ validationAdd: { errors } }] };
 }
+
+// ── 유틸 함수 ───────────────────────────────────────────────
+
+function parseConditionTypes(value) {
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [parsed];
+  } catch {
+    return [value];
+  }
+}
+

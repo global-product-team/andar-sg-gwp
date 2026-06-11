@@ -12,8 +12,8 @@ export default function extension() {
   render(<Extension />, document.body);
 }
 
-const GWP_HANDLE = "sg-gwp";
-const GWP_TYPE = "gwp";
+const GWP_HANDLE = "app--368442998785--gwp-zzn4bdst";
+const GWP_TYPE = "app--368442998785--gwp";
 
 function Extension() {
   const cartLines = useCartLines();
@@ -79,17 +79,17 @@ function Extension() {
   }
 
   function isProductConditionMatched(condition) {
-    if (!condition.requiredProduct?.id) return false;
+    if (!condition.product?.id) return false;
 
     const productQuantity = cartLines
-      .filter((line) => line?.merchandise?.product?.id === condition.requiredProduct.id)
+      .filter((line) => line?.merchandise?.product?.id === condition.product.id)
       .reduce((sum, line) => sum + Number(line.quantity || 0), 0);
 
     return productQuantity >= Number(condition.productQuantity || 1);
   }
 
   function isCollectionConditionMatched(condition) {
-    if (!condition.requiredCollection?.id) return false;
+    if (!condition.collection?.id) return false;
 
     const collectionQuantity = cartLines.reduce((sum, line) => {
       const productId = line?.merchandise?.product?.id;
@@ -99,7 +99,7 @@ function Extension() {
 
       const product = productsWithCollections.find((p) => p.id === productId);
       const hasCollection = product?.collections?.nodes?.some(
-        (collection) => collection.id === condition.requiredCollection.id
+        (collection) => collection.id === condition.collection.id
       );
 
       return hasCollection ? sum + quantity : sum;
@@ -406,9 +406,9 @@ function Extension() {
       conditionTitle: fields.condition_title,
       thresholdAmount: fields.threshold_amount,
       currencyCode: fields.currency_code,
-      requiredProduct: getReferenceByKey(metaobject.fields, "required_product"),
+      product: getReferenceByKey(metaobject.fields, "product"),
       productQuantity: fields.product_quantity,
-      requiredCollection: getReferenceByKey(metaobject.fields, "required_collection"),
+      collection: getReferenceByKey(metaobject.fields, "collection"),
       collectionQuantity: fields.collection_quantity,
       giftProduct: getReferenceByKey(metaobject.fields, "gift_product"),
     };
@@ -491,50 +491,6 @@ function Extension() {
     return { behavior: "allow" };
   });
 
-  // ── 렌더 ─────────────────────────────────────────────────────
-
-  // ── Debug ──────────────────────────────────────────────────
-  // function DebugBox({ title, data }) {
-  //   return (
-  //     <s-box background="subdued" borderRadius="base" borderWidth="base" padding="base">
-  //       <s-stack gap="small-100">
-  //         <s-text>Start Datetime: {gwp?.startDatetime || "none"}</s-text>
-  //         <s-text>End Datetime: {gwp?.endDatetime || "none"}</s-text>
-  //         <s-text>Now: {new Date().toISOString()}</s-text>
-  //         <s-text>Debug Info: {debugInfo}</s-text>
-  //         <s-text size="medium" emphasis="bold">{title}</s-text>
-  //         <s-text>GWP Loaded: {String(!!gwp)}</s-text>
-  //         <s-text>Loading: {String(loading)}</s-text>
-  //         <s-text>Collections Loading: {String(collectionsLoading)}</s-text>
-  //         <s-text>Condition Types: {JSON.stringify(conditionTypes)}</s-text>
-  //         <s-text>Conditions Count: {String(conditions.length)}</s-text>
-  //         <s-text>Condition 0 currencyCode: {conditions[0]?.currencyCode || "none"}</s-text>
-  //         <s-text>Condition 0 thresholdAmount: {conditions[0]?.thresholdAmount || "none"}</s-text>
-  //         <s-text>Condition 0 collection ID: {conditions[0]?.requiredCollection?.id || "none"}</s-text>
-  //         <s-text>Condition 0 collectionQuantity: {conditions[0]?.collectionQuantity || "none"}</s-text>
-  //         <s-text>ProductsWithCollections IDs: {JSON.stringify(productsWithCollections.map((p) => ({ productId: p.id, collectionIds: p.collections?.nodes?.map((c) => c.id) })))}</s-text>
-  //         <s-text>Gift Product IDs: {JSON.stringify(giftProductIds)}</s-text>
-  //         <s-text>Cart Line Product IDs: {JSON.stringify(cartLines.map((l) => l?.merchandise?.product?.id))}</s-text>
-  //         <s-text>Total Amount: {String(totalAmount)}</s-text>
-  //         <s-text>Currency Code: {String(currencyCode)}</s-text>
-  //         <s-text>Cart Lines Count: {String(cartLines.length)}</s-text>
-  //         <s-text>Products With Collections Count: {String(productsWithCollections.length)}</s-text>
-  //         <s-text>Eligible Condition: {eligibleCondition?.conditionTitle || "none"}</s-text>
-  //         <s-text>Target Product: {targetProduct?.title || "none"}</s-text>
-  //         <s-text>Target Product ID: {targetProductId || "none"}</s-text>
-  //         <s-text>Target Product Line: {String(!!targetProductLine)}</s-text>
-  //         <s-text>Target Variant ID: {targetVariantId || "none"}</s-text>
-  //         <s-text>Reason: {data || "none"}</s-text>
-  //       </s-stack>
-  //     </s-box>
-  //   );
-  // }
-
-  // if (loading || collectionsLoading) return <DebugBox data="loading or collectionsLoading" title="GWP Debug / Loading Blocked" />;
-  // if (!eligibleCondition) return <DebugBox data="eligibleCondition is null" title="GWP Debug / No Eligible Condition" />;
-  // if (!targetProduct) return <DebugBox data="targetProduct is null" title="GWP Debug / No Target Product" />;
-  // if (targetProductLine) return <DebugBox data="targetProductLine exists" title="GWP Debug / Gift Already In Cart" />;
-  // ────────────────────────────────────────────────────────────
 
   if (loading || collectionsLoading) {
     return (
