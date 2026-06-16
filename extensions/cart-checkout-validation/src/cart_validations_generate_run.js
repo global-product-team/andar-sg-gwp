@@ -3,6 +3,8 @@
 const LEGGINGS_UNDERWEAR_PRODUCT_ID = "gid://shopify/Product/9993633431866";
 const BEACH_BAG_PRODUCT_ID = "gid://shopify/Product/9948721316154";
 
+const EGIFT_PRODUCT_ID = "gid://shopify/Product/9726266376506";
+
 const TIERS = {
   SGD: {
     tier150: 150,
@@ -42,7 +44,8 @@ export function cartValidationsGenerateRun(input) {
   const currencyCode = input?.cart?.cost?.totalAmount?.currencyCode;
 
   const totalAmount = cartLines.reduce((sum, line) => {
-    if (line?.merchandise?.__typename !== "ProductVariant") return sum; // CustomProduct 제외
+    if (line?.merchandise?.__typename !== "ProductVariant") return sum;
+    if (line?.merchandise?.product?.id === EGIFT_PRODUCT_ID) return sum; // E-Gift 제외
     return sum + Number(line?.cost?.totalAmount?.amount || 0);
   }, 0);
 

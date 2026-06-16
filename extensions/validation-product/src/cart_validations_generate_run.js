@@ -5,6 +5,9 @@
  * conditionTypes는 메타오브젝트에서 읽어옴
  * productId, giftProductId는 하드코딩 유지
  */
+
+const EGIFT_PRODUCT_ID = "gid://shopify/Product/9726266376506";
+
 const GWP_CONDITIONS = [
   {
     currencyCode: "SGD",
@@ -68,6 +71,7 @@ export function cartValidationsGenerateRun(input) {
   const cartLines = input?.cart?.lines ?? [];
   const totalAmount = cartLines.reduce((sum, line) => {
     if (line?.merchandise?.__typename !== "ProductVariant") return sum;
+    if (line?.merchandise?.product?.id === EGIFT_PRODUCT_ID) return sum; // E-Gift 제외
     return sum + Number(line?.cost?.totalAmount?.amount || 0);
   }, 0);
 

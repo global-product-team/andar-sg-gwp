@@ -6,6 +6,9 @@
  * collectionId, giftProductId는 하드코딩 유지
  * inCollections ids도 run.graphql에 동일하게 유지
  */
+
+const EGIFT_PRODUCT_ID = "gid://shopify/Product/9726266376506";
+
 const GWP_CONDITIONS = [
   { //men
     currencyCode: "SGD",
@@ -73,6 +76,7 @@ export function cartValidationsGenerateRun(input) {
   const cartLines = input?.cart?.lines ?? [];
   const totalAmount = cartLines.reduce((sum, line) => {
     if (line?.merchandise?.__typename !== "ProductVariant") return sum;
+    if (line?.merchandise?.product?.id === EGIFT_PRODUCT_ID) return sum; // E-Gift 제외
     return sum + Number(line?.cost?.totalAmount?.amount || 0);
   }, 0);
 
@@ -108,6 +112,7 @@ export function cartValidationsGenerateRun(input) {
         // ── collectionOnly: 컬렉션 상품 금액 합계로 threshold 체크 ──
         const collectionAmount = cartLines.reduce((sum, line) => {
           if (line?.merchandise?.__typename !== "ProductVariant") return sum;
+          if (line?.merchandise?.product?.id === EGIFT_PRODUCT_ID) return sum; // E-Gift 제외
           const inCollections = line?.merchandise?.product?.inCollections || [];
           const isMember = inCollections.some(
             (c) => c.collectionId === condition.collectionId && c.isMember === true
