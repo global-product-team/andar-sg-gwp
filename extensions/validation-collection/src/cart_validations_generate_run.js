@@ -26,7 +26,7 @@ const GWP_CONDITIONS = [
 ];
 
 const ERROR_MESSAGE =
-  "error message.";
+  "error collection message.";
   
 
 export function cartValidationsGenerateRun(input) {
@@ -69,9 +69,12 @@ export function cartValidationsGenerateRun(input) {
 
   // ── 카트 데이터 ──────────────────────────────────────────
 
-  const totalAmount = Number(input?.cart?.cost?.totalAmount?.amount ?? 0);
   const currencyCode = input?.cart?.cost?.totalAmount?.currencyCode;
   const cartLines = input?.cart?.lines ?? [];
+  const totalAmount = cartLines.reduce((sum, line) => {
+    if (line?.merchandise?.__typename !== "ProductVariant") return sum;
+    return sum + Number(line?.cost?.totalAmount?.amount || 0);
+  }, 0);
 
   // ── eligible condition 찾기 ──────────────────────────────
 
@@ -103,12 +106,6 @@ export function cartValidationsGenerateRun(input) {
 
       if (condition.collectionOnly) {
         // ── collectionOnly: 컬렉션 상품 금액 합계로 threshold 체크 ──
-        const cartTotal = Number(input?.cart?.cost?.totalAmount?.amount || 0);
-        const cartLineTotal = cartLines.reduce((sum, line) => {
-          return sum + Number(line?.cost?.totalAmount?.amount || 0);
-        }, 0);
-        const discountRatio = cartLineTotal > 0 ? cartTotal / cartLineTotal : 1;
-
         const collectionAmount = cartLines.reduce((sum, line) => {
           if (line?.merchandise?.__typename !== "ProductVariant") return sum;
           const inCollections = line?.merchandise?.product?.inCollections || [];
@@ -116,8 +113,7 @@ export function cartValidationsGenerateRun(input) {
             (c) => c.collectionId === condition.collectionId && c.isMember === true
           );
           if (!isMember) return sum;
-          const linePrice = Number(line?.cost?.totalAmount?.amount || 0);
-          return sum + linePrice * discountRatio;
+          return sum + Number(line?.cost?.totalAmount?.amount || 0);
         }, 0);
 
         return collectionAmount >= (condition.thresholdAmount || 0);

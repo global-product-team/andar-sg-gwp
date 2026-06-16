@@ -11,8 +11,6 @@ query CartValidationsGenerateRunInput {
     }
     metaobject(handle: { type: "app--368442998785--gwp", handle: "app--368442998785--gwp-zzn4bdst" }) {
       condition_type: field(key: "condition_type") { value }
-      start_datetime: field(key: "start_datetime") { value }
-      end_datetime: field(key: "end_datetime") { value }
     }
   }
   cart {
@@ -31,6 +29,11 @@ query CartValidationsGenerateRunInput {
       }
     }
     lines {
+      cost {
+        totalAmount {
+          amount
+        }
+      }
       quantity
       merchandise {
         __typename

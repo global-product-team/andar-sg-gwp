@@ -1,5 +1,7 @@
 // @ts-check
 
+// const EGIFT_PRODUCT_ID = "gid://shopify/Product/9726266376506";
+
 const GWP_CONDITIONS = [
   {
     currencyCode: "SGD",
@@ -24,7 +26,7 @@ const GWP_CONDITIONS = [
 ];
 
 const ERROR_MESSAGE =
-  "If no gift is selected, a random item will be sent. Please note that exchanges or returns due to this are not accepted.";
+  "error amount message.";
 
 export function cartValidationsGenerateRun(input) {
   const step = input.buyerJourney?.step;
@@ -66,9 +68,13 @@ export function cartValidationsGenerateRun(input) {
 
   // ── 카트 데이터 ──────────────────────────────────────────
 
-  const totalAmount = Number(input?.cart?.cost?.totalAmount?.amount ?? 0);
+
   const currencyCode = input?.cart?.cost?.totalAmount?.currencyCode;
   const cartLines = input?.cart?.lines ?? [];
+  const totalAmount = cartLines.reduce((sum, line) => {
+    if (line?.merchandise?.__typename !== "ProductVariant") return sum; // CustomProduct 제외
+    return sum + Number(line?.cost?.totalAmount?.amount || 0);
+  }, 0);
 
   const cartProductIds = cartLines
     .map((line) => {
