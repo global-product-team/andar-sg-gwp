@@ -72,6 +72,8 @@ function Extension() {
   // ── 조건 평가 함수 ──────────────────────────────────────────
 
   function isAmountConditionMatched(condition) {
+    if (condition.collectionOnly) return true;
+
     return (
       condition.currencyCode === currencyCode &&
       totalAmount >= Number(condition.thresholdAmount || 0)
@@ -90,6 +92,26 @@ function Extension() {
 
   function isCollectionConditionMatched(condition) {
     if (!condition.collection?.id) return false;
+
+     // collection_only가 true면 해당 컬렉션 상품 금액 합산으로 체크
+    if (condition.collectionOnly) {
+      const collectionAmount = cartLines.reduce((sum, line) => {
+        const productId = line?.merchandise?.product?.id;
+        if (isGiftProduct(productId)) return sum;
+
+        const product = productsWithCollections.find((p) => p.id === productId);
+        const hasCollection = product?.collections?.nodes?.some(
+          (collection) => collection.id === condition.collection.id
+        );
+
+        if (!hasCollection) return sum;
+
+        const linePrice = Number(line?.cost?.totalAmount?.amount || 0);
+        return sum + linePrice;
+      }, 0);
+
+      return collectionAmount >= Number(condition.thresholdAmount || 0);
+    }
 
     const collectionQuantity = cartLines.reduce((sum, line) => {
       const productId = line?.merchandise?.product?.id;
@@ -121,10 +143,16 @@ function Extension() {
 
   // ────────────────────────────────────────────────────────────
 
+
   const eligibleCondition = useMemo(() => {
     if (!gwp) return null;
     if (!conditionTypes.length) return null;
-    if (conditionTypes.includes("collection") && collectionsLoading) return null;
+
+    const hasCollectionCondition =
+      conditionTypes.includes("collection") ||
+      conditions.some((c) => c.collectionOnly);
+
+    if (hasCollectionCondition && collectionsLoading) return null;
     if (!isWithinCampaignPeriod(gwp.startDatetime, gwp.endDatetime)) return null;
 
     return (
@@ -172,6 +200,7 @@ function Extension() {
   // 잘못된 tier의 gift 자동 제거
   useEffect(() => {
     async function syncGiftTier() {
+      if (loading) return; 
       if (isRemovingRef.current) return;
       if (collectionsLoading) return;
       if (!instructions?.lines?.canRemoveCartLine) return;
@@ -206,7 +235,7 @@ function Extension() {
     }
 
     syncGiftTier();
-  }, [cartLines, giftProductIds, targetProductId, instructions]);
+  }, [cartLines, giftProductIds, targetProductId, instructions, loading]);
 
   // gift 수량 1로 고정
   useEffect(() => {
@@ -409,6 +438,7 @@ function Extension() {
       product: getReferenceByKey(metaobject.fields, "product"),
       productQuantity: fields.product_quantity,
       collection: getReferenceByKey(metaobject.fields, "collection"),
+      collectionOnly: fields.collection_only === "true",
       collectionQuantity: fields.collection_quantity,
       giftProduct: getReferenceByKey(metaobject.fields, "gift_product"),
     };
