@@ -109,6 +109,10 @@ description = "Gift with purchase condition"
   name = "Collection"
   type = "collection_reference"
 
+  [metaobjects.app.gwp_condition.fields.collection_only]
+  name = "Collection Only"
+  type = "boolean"
+
   [metaobjects.app.gwp_condition.fields.collection_quantity]
   name = "Collection Quantity"
   type = "number_integer"
