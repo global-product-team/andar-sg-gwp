@@ -11,6 +11,7 @@ const GWP_CONDITIONS = [
     currencyCode: "SGD",
     thresholdAmount: 80,
     collectionId: "gid://shopify/Collection/499615138106",
+    collectionOnly: false,
     collectionQuantity: 1,
     giftProductId: "gid://shopify/Product/10143139397946",
   },    
@@ -18,6 +19,7 @@ const GWP_CONDITIONS = [
     currencyCode: "MYR",
     thresholdAmount: 400,
     collectionId: "gid://shopify/Collection/447626903866",
+    collectionOnly: false,
     collectionQuantity: 2,
     giftProductId: "gid://shopify/Product/10143139397946",
   },
@@ -87,28 +89,54 @@ export function cartValidationsGenerateRun(input) {
     });
 
   const eligibleCondition = sortedConditions.find((condition) => {
-    const amountOk =
-      !conditionTypes.includes("amount") ||
-      totalAmount >= (condition.thresholdAmount || 0);
+    const amountOk = (() => {
+      if (!conditionTypes.includes("amount")) return true;
+      if (condition.collectionOnly) return true; // ← 추가
+      return totalAmount >= (condition.thresholdAmount || 0);
+    })();
 
-    const collectionOk = !conditionTypes.includes("collection") || (() => {
+    if (!amountOk) return false; // ← 추가 (early return)
+
+    const collectionOk = (() => {
+      if (!conditionTypes.includes("collection")) return true;
       if (!condition.collectionId) return false;
 
+      if (condition.collectionOnly) {
+        // ── collectionOnly: 컬렉션 상품 금액 합계로 threshold 체크 ──
+        const cartTotal = Number(input?.cart?.cost?.totalAmount?.amount || 0);
+        const cartLineTotal = cartLines.reduce((sum, line) => {
+          return sum + Number(line?.cost?.totalAmount?.amount || 0);
+        }, 0);
+        const discountRatio = cartLineTotal > 0 ? cartTotal / cartLineTotal : 1;
+
+        const collectionAmount = cartLines.reduce((sum, line) => {
+          if (line?.merchandise?.__typename !== "ProductVariant") return sum;
+          const inCollections = line?.merchandise?.product?.inCollections || [];
+          const isMember = inCollections.some(
+            (c) => c.collectionId === condition.collectionId && c.isMember === true
+          );
+          if (!isMember) return sum;
+          const linePrice = Number(line?.cost?.totalAmount?.amount || 0);
+          return sum + linePrice * discountRatio;
+        }, 0);
+
+        return collectionAmount >= (condition.thresholdAmount || 0);
+      }
+
+      // 기존 로직: 수량 체크
       const collectionQty = cartLines.reduce((sum, line) => {
         if (line?.merchandise?.__typename !== "ProductVariant") return sum;
-
         const inCollections = line?.merchandise?.product?.inCollections || [];
         const isMember = inCollections.some(
           (c) => c.collectionId === condition.collectionId && c.isMember === true
         );
-
         return isMember ? sum + Number(line.quantity || 0) : sum;
       }, 0);
 
       return collectionQty >= (condition.collectionQuantity || 1);
     })();
 
-    return amountOk && collectionOk;
+    return collectionOk; // ← amountOk는 위에서 이미 처리했으므로
   });
 
   if (!eligibleCondition) {
