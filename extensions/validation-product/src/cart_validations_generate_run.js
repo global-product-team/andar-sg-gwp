@@ -1,32 +1,31 @@
 // @ts-check
 
+/**
+ * 조건 설정값
+ * conditionTypes는 메타오브젝트에서 읽어옴
+ * productId, giftProductId는 하드코딩 유지
+ */
+
 const EGIFT_PRODUCT_ID = "gid://shopify/Product/9726266376506";
 
 const GWP_CONDITIONS = [
   {
     currencyCode: "SGD",
-    thresholdAmount: 150,
-    giftProductId: "gid://shopify/Product/9993633431866",
+    thresholdAmount: 100,
+    productId: "gid://shopify/Product/XXXXXXXXX",
+    productQuantity: 2,
+    giftProductId: "gid://shopify/Product/XXXXXXXXX",
   },
   {
     currencyCode: "MYR",
-    thresholdAmount: 465,
-    giftProductId: "gid://shopify/Product/9993633431866",
-  },
-  {
-    currencyCode: "SGD",
-    thresholdAmount: 200,
-    giftProductId: "gid://shopify/Product/9948721316154",
-  },
-  {
-    currencyCode: "MYR",
-    thresholdAmount: 620,
-    giftProductId: "gid://shopify/Product/9948721316154",
+    thresholdAmount: 300,
+    productId: "gid://shopify/Product/XXXXXXXXX",
+    productQuantity: 2,
+    giftProductId: "gid://shopify/Product/XXXXXXXXX",
   },
 ];
 
-const ERROR_MESSAGE =
-  "error amount message.";
+const ERROR_MESSAGE = "error product message.";
 
 export function cartValidationsGenerateRun(input) {
   const step = input.buyerJourney?.step;
@@ -56,7 +55,7 @@ export function cartValidationsGenerateRun(input) {
 
   const conditionTypes = parseConditionTypes(metaobject?.condition_type?.value);
 
-  if (!conditionTypes.includes("amount")) {
+  if (!conditionTypes.includes("product")) {
     return { operations: [{ validationAdd: { errors: [] } }] };
   }
 
@@ -68,7 +67,6 @@ export function cartValidationsGenerateRun(input) {
 
   // ── 카트 데이터 ──────────────────────────────────────────
 
-
   const currencyCode = input?.cart?.cost?.totalAmount?.currencyCode;
   const cartLines = input?.cart?.lines ?? [];
   const totalAmount = cartLines.reduce((sum, line) => {
@@ -77,28 +75,53 @@ export function cartValidationsGenerateRun(input) {
     return sum + Number(line?.cost?.totalAmount?.amount || 0);
   }, 0);
 
+  // ── eligible condition 찾기 ──────────────────────────────
+
+  const sortedConditions = [...GWP_CONDITIONS]
+    .filter((c) => c.currencyCode === currencyCode)
+    .sort((a, b) => {
+      const amountDiff = (b.thresholdAmount || 0) - (a.thresholdAmount || 0);
+      if (amountDiff !== 0) return amountDiff;
+      return (b.productQuantity || 0) - (a.productQuantity || 0);
+    });
+
+  const eligibleCondition = sortedConditions.find((condition) => {
+    // ── amount 조건 ──────────────────────────────────────
+    const amountOk = (() => {
+      if (!conditionTypes.includes("amount")) return true;
+      return totalAmount >= (condition.thresholdAmount || 0);
+    })();
+
+    if (!amountOk) return false;
+
+    // ── product 수량 조건 ─────────────────────────────────
+    const productOk = (() => {
+      if (!condition.productId) return false;
+
+      const productQty = cartLines.reduce((sum, line) => {
+        if (line?.merchandise?.__typename !== "ProductVariant") return sum;
+        if (line?.merchandise?.product?.id !== condition.productId) return sum;
+        return sum + Number(line.quantity || 0);
+      }, 0);
+
+      return productQty >= (condition.productQuantity || 1);
+    })();
+
+    return productOk;
+  });
+
+  if (!eligibleCondition) {
+    return { operations: [{ validationAdd: { errors: [] } }] };
+  }
+
+  // ── gift product 카트 여부 확인 ───────────────────────────
+
   const cartProductIds = cartLines
     .map((line) => {
       if (line?.merchandise?.__typename !== "ProductVariant") return null;
       return line?.merchandise?.product?.id ?? null;
     })
     .filter(Boolean);
-
-  // ── currency 필터 후 threshold 내림차순 정렬 ──────────────
-
-  const sortedConditions = [...GWP_CONDITIONS]
-    .filter((c) => c.currencyCode === currencyCode)
-    .sort((a, b) => (b.thresholdAmount || 0) - (a.thresholdAmount || 0));
-
-  // ── 해당하는 tier의 gift가 카트에 있는지 확인 ────────────
-
-  const eligibleCondition = sortedConditions.find(
-    (condition) => totalAmount >= condition.thresholdAmount
-  );
-
-  if (!eligibleCondition) {
-    return { operations: [{ validationAdd: { errors: [] } }] };
-  }
 
   const hasGift = cartProductIds.includes(eligibleCondition.giftProductId);
 

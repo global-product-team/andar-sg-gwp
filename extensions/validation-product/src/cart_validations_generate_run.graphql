@@ -2,6 +2,17 @@ query CartValidationsGenerateRunInput {
   buyerJourney {
     step
   }
+  shop {
+    localTime {
+      isCampaignPeriod: dateTimeBetween(
+        startDateTime: "2026-06-08T16:20:00"
+        endDateTime: "2026-06-12T07:00:00"
+      )
+    }
+    metaobject(handle: { type: "app--368442998785--gwp", handle: "app--368442998785--gwp-zzn4bdst" }) {
+      condition_type: field(key: "condition_type") { value }
+    }
+  }
   cart {
     buyerIdentity {
       customer {
@@ -11,15 +22,14 @@ query CartValidationsGenerateRunInput {
         }
       }
     }
-
     cost {
       totalAmount {
         amount
         currencyCode
       }
     }
-
     lines {
+      quantity
       cost {
         totalAmount {
           amount

@@ -6,6 +6,9 @@
  * collectionId, giftProductId는 하드코딩 유지
  * inCollections ids도 run.graphql에 동일하게 유지
  */
+
+const EGIFT_PRODUCT_ID = "gid://shopify/Product/9726266376506";
+
 const GWP_CONDITIONS = [
   { //men
     currencyCode: "SGD",
@@ -26,7 +29,7 @@ const GWP_CONDITIONS = [
 ];
 
 const ERROR_MESSAGE =
-  "error message.";
+  "error collection message.";
   
 
 export function cartValidationsGenerateRun(input) {
@@ -69,9 +72,13 @@ export function cartValidationsGenerateRun(input) {
 
   // ── 카트 데이터 ──────────────────────────────────────────
 
-  const totalAmount = Number(input?.cart?.cost?.totalAmount?.amount ?? 0);
   const currencyCode = input?.cart?.cost?.totalAmount?.currencyCode;
   const cartLines = input?.cart?.lines ?? [];
+  const totalAmount = cartLines.reduce((sum, line) => {
+    if (line?.merchandise?.__typename !== "ProductVariant") return sum;
+    if (line?.merchandise?.product?.id === EGIFT_PRODUCT_ID) return sum; // E-Gift 제외
+    return sum + Number(line?.cost?.totalAmount?.amount || 0);
+  }, 0);
 
   // ── eligible condition 찾기 ──────────────────────────────
 
@@ -103,21 +110,15 @@ export function cartValidationsGenerateRun(input) {
 
       if (condition.collectionOnly) {
         // ── collectionOnly: 컬렉션 상품 금액 합계로 threshold 체크 ──
-        const cartTotal = Number(input?.cart?.cost?.totalAmount?.amount || 0);
-        const cartLineTotal = cartLines.reduce((sum, line) => {
-          return sum + Number(line?.cost?.totalAmount?.amount || 0);
-        }, 0);
-        const discountRatio = cartLineTotal > 0 ? cartTotal / cartLineTotal : 1;
-
         const collectionAmount = cartLines.reduce((sum, line) => {
           if (line?.merchandise?.__typename !== "ProductVariant") return sum;
+          if (line?.merchandise?.product?.id === EGIFT_PRODUCT_ID) return sum; // E-Gift 제외
           const inCollections = line?.merchandise?.product?.inCollections || [];
           const isMember = inCollections.some(
             (c) => c.collectionId === condition.collectionId && c.isMember === true
           );
           if (!isMember) return sum;
-          const linePrice = Number(line?.cost?.totalAmount?.amount || 0);
-          return sum + linePrice * discountRatio;
+          return sum + Number(line?.cost?.totalAmount?.amount || 0);
         }, 0);
 
         return collectionAmount >= (condition.thresholdAmount || 0);

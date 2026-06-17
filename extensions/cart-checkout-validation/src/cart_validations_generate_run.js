@@ -3,6 +3,8 @@
 const LEGGINGS_UNDERWEAR_PRODUCT_ID = "gid://shopify/Product/9993633431866";
 const BEACH_BAG_PRODUCT_ID = "gid://shopify/Product/9948721316154";
 
+const EGIFT_PRODUCT_ID = "gid://shopify/Product/9726266376506";
+
 const TIERS = {
   SGD: {
     tier150: 150,
@@ -38,14 +40,19 @@ export function cartValidationsGenerateRun(input) {
   //   return { operations: [{ validationAdd: { errors: [] } }] };
   // }
 
-  const totalAmount = Number(input?.cart?.cost?.totalAmount?.amount ?? 0);
+  const cartLines = input?.cart?.lines ?? [];
   const currencyCode = input?.cart?.cost?.totalAmount?.currencyCode;
 
-  const productIdsInCart = (input?.cart?.lines ?? [])
+  const totalAmount = cartLines.reduce((sum, line) => {
+    if (line?.merchandise?.__typename !== "ProductVariant") return sum;
+    if (line?.merchandise?.product?.id === EGIFT_PRODUCT_ID) return sum; // E-Gift 제외
+    return sum + Number(line?.cost?.totalAmount?.amount || 0);
+  }, 0);
+
+  const productIdsInCart = cartLines
     .map((line) => {
-      const merchandise = line?.merchandise;
-      if (merchandise?.__typename !== "ProductVariant") return null;
-      return merchandise?.product?.id ?? null;
+      if (line?.merchandise?.__typename !== "ProductVariant") return null;
+      return line?.merchandise?.product?.id ?? null;
     })
     .filter(Boolean);
 
@@ -53,27 +60,13 @@ export function cartValidationsGenerateRun(input) {
   const hasBeachBag = productIdsInCart.includes(BEACH_BAG_PRODUCT_ID);
 
   const errors = [];
-
   const tier = TIERS[currencyCode];
 
   if (tier) {
-    if (
-      totalAmount >= tier.tier200 &&
-      !hasBeachBag
-    ) {
-      errors.push({
-        message: ERROR_MESSAGE,
-        target: "$.cart",
-      });
-    } else if (
-      totalAmount >= tier.tier150 &&
-      totalAmount < tier.tier200 &&
-      !hasLeggingsUnderwear
-    ) {
-      errors.push({
-        message: ERROR_MESSAGE,
-        target: "$.cart",
-      });
+    if (totalAmount >= tier.tier200 && !hasBeachBag) {
+      errors.push({ message: ERROR_MESSAGE, target: "$.cart" });
+    } else if (totalAmount >= tier.tier150 && totalAmount < tier.tier200 && !hasLeggingsUnderwear) {
+      errors.push({ message: ERROR_MESSAGE, target: "$.cart" });
     }
   }
 

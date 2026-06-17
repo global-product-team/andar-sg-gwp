@@ -14,6 +14,7 @@ export default function extension() {
 
 const GWP_HANDLE = "sg-11-th-anniversary-gwp";
 const GWP_TYPE = "gwp";
+const EGIFT_PRODUCT_ID = "gid://shopify/Product/9726266376506";
 
 function Extension() {
   const cartLines = useCartLines();
@@ -26,7 +27,12 @@ function Extension() {
   const isRemovingRef = useRef(false);
   const isNormalizingGiftQtyRef = useRef(false);
 
-  const totalAmount = Number(total?.amount ?? 0);
+  const totalAmount = useMemo(() => {
+    return cartLines.reduce((sum, line) => {
+      if (line?.merchandise?.product?.id === EGIFT_PRODUCT_ID) return sum;
+      return sum + Number(line?.cost?.totalAmount?.amount || 0);
+    }, 0);
+  }, [cartLines]);
   const currencyCode = total?.currencyCode;
 
   useEffect(() => {
