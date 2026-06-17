@@ -14,6 +14,7 @@ export default function extension() {
 
 const GWP_HANDLE = "app--368442998785--gwp-zzn4bdst";
 const GWP_TYPE = "app--368442998785--gwp";
+const EGIFT_PRODUCT_ID = "gid://shopify/Product/9726266376506";
 
 function Extension() {
   const cartLines = useCartLines();
@@ -30,7 +31,12 @@ function Extension() {
 
   // const [debugInfo, setDebugInfo] = useState("");
 
-  const totalAmount = Number(total?.amount ?? 0);
+  const totalAmount = useMemo(() => {
+    return cartLines.reduce((sum, line) => {
+      if (line?.merchandise?.product?.id === EGIFT_PRODUCT_ID) return sum;
+      return sum + Number(line?.cost?.totalAmount?.amount || 0);
+    }, 0);
+  }, [cartLines]);
   const currencyCode = total?.currencyCode;
 
   const productIds = useMemo(() => {
@@ -98,16 +104,14 @@ function Extension() {
       const collectionAmount = cartLines.reduce((sum, line) => {
         const productId = line?.merchandise?.product?.id;
         if (isGiftProduct(productId)) return sum;
+        if (productId === EGIFT_PRODUCT_ID) return sum; // ← 추가
 
         const product = productsWithCollections.find((p) => p.id === productId);
         const hasCollection = product?.collections?.nodes?.some(
           (collection) => collection.id === condition.collection.id
         );
-
         if (!hasCollection) return sum;
-
-        const linePrice = Number(line?.cost?.totalAmount?.amount || 0);
-        return sum + linePrice;
+        return sum + Number(line?.cost?.totalAmount?.amount || 0);
       }, 0);
 
       return collectionAmount >= Number(condition.thresholdAmount || 0);
