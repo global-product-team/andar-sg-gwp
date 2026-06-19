@@ -20,7 +20,9 @@ function Extension() {
   const cartLines = useCartLines();
   const total = useTotalAmount();
   const instructions = useInstructions();
-
+  const isAddingRef = useRef(false);
+  
+  const [isAdding, setIsAdding] = useState(false);
   const [gwp, setGwp] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedVariants, setSelectedVariants] = useState({});
@@ -92,6 +94,8 @@ function Extension() {
   }, [targetProduct]);
 
   const targetProductLine = getCartLineByProductId(targetProductId);
+
+  
 
   function getCartLineByProductId(productId) {
     if (!productId) return null;
@@ -402,15 +406,32 @@ function Extension() {
 
     console.log("decrease result", result);
   }
+  
 
   async function addToCart(variantId) {
-    const result = await shopify.applyCartLinesChange({
-      type: "addCartLine",
-      merchandiseId: variantId,
-      quantity: 1,
-    });
+    if (isAddingRef.current) return;
 
-    console.log("add result", result);
+    isAddingRef.current = true;
+    setIsAdding(true);
+    // const result = await shopify.applyCartLinesChange({
+    //   type: "addCartLine",
+    //   merchandiseId: variantId,
+    //   quantity: 1,
+    // });
+
+    // console.log("add result", result);
+    try {
+      const result = await shopify.applyCartLinesChange({
+        type: "addCartLine",
+        merchandiseId: variantId,
+        quantity: 1,
+      });
+
+      console.log("add result", result);
+    } finally {
+      isAddingRef.current = false;
+      setIsAdding(false);
+    }
   }
 
   function handleVariantChange(productId, variantId) {
@@ -528,6 +549,7 @@ function Extension() {
                 <s-button
                   size="small"
                   disabled={
+                    isAdding ||
                     !selectedVariant?.availableForSale ||
                     !instructions?.lines?.canAddCartLine
                   }

@@ -20,14 +20,16 @@ function Extension() {
   const cartLines = useCartLines();
   const total = useTotalAmount();
   const instructions = useInstructions();
-
+  const isRemovingRef = useRef(false);
+  const isNormalizingGiftQtyRef = useRef(false);
+  const isAddingRef = useRef(false);
+  
   const [gwp, setGwp] = useState(null);
   const [loading, setLoading] = useState(true);
   const [collectionsLoading, setCollectionsLoading] = useState(false);
   const [productsWithCollections, setProductsWithCollections] = useState([]);
   const [selectedVariants, setSelectedVariants] = useState({});
-  const isRemovingRef = useRef(false);
-  const isNormalizingGiftQtyRef = useRef(false);
+  const [isAdding, setIsAdding] = useState(false);
 
   // const [debugInfo, setDebugInfo] = useState("");
 
@@ -111,7 +113,9 @@ function Extension() {
           (collection) => collection.id === condition.collection.id
         );
         if (!hasCollection) return sum;
-        return sum + Number(line?.cost?.totalAmount?.amount || 0);
+
+        const linePrice = Number(line?.cost?.totalAmount?.amount || 0);
+        return sum + linePrice;
       }, 0);
 
       return collectionAmount >= Number(condition.thresholdAmount || 0);
@@ -493,11 +497,21 @@ function Extension() {
   }
 
   async function addToCart(variantId) {
-    await shopify.applyCartLinesChange({
-      type: "addCartLine",
-      merchandiseId: variantId,
-      quantity: 1,
-    });
+    if (isAddingRef.current) return;
+
+    isAddingRef.current = true;
+    setIsAdding(true);
+
+    try {
+      await shopify.applyCartLinesChange({
+        type: "addCartLine",
+        merchandiseId: variantId,
+        quantity: 1,
+      });
+    } finally {
+      isAddingRef.current = false;
+      setIsAdding(false);
+    }
   }
 
   function handleVariantChange(productId, variantId) {
@@ -599,6 +613,7 @@ function Extension() {
                 <s-button
                   size="small"
                   disabled={
+                    isAdding ||
                     !selectedVariant?.availableForSale ||
                     !instructions?.lines?.canAddCartLine
                   }

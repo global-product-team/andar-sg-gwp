@@ -62,6 +62,29 @@ export function cartValidationsGenerateRun(input) {
   const errors = [];
   const tier = TIERS[currencyCode];
 
+  const giftLines = cartLines.filter((line) => {
+    if (line?.merchandise?.__typename !== "ProductVariant") return false;
+
+    const productId = line?.merchandise?.product?.id;
+    return (
+      productId === LEGGINGS_UNDERWEAR_PRODUCT_ID ||
+      productId === BEACH_BAG_PRODUCT_ID
+    );
+  });
+
+  const totalGiftQuantity = giftLines.reduce(
+    (sum, line) => sum + Number(line?.quantity || 0),
+    0
+  );
+
+  if (totalGiftQuantity > 1) {
+    errors.push({
+      message: "Only one complimentary gift can be selected per order.",
+      target: "$.cart",
+    });
+  }
+
+
   if (tier) {
     if (totalAmount >= tier.tier200 && !hasBeachBag) {
       errors.push({ message: ERROR_MESSAGE, target: "$.cart" });
